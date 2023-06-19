@@ -1,5 +1,71 @@
-# LPCVC-2023
+# Solution for LPCVC 2023
 
-School project
+## Team Members
+Student at Telecom Paris - First-year final project
+- [Fan Hong](github_profile_link)
+- [Noé Vernier](github_profile_link)
+- [Ulysse Ristorcelli](github_profile_link)
+- [Jacques Sun](github_profile_link)
 
-Ulysse Ristorcelli
+## Project Description
+
+The LOW-POWER COMPUTER VISION CHALLENGE 2023 project is a competition focused on achieving efficient and accurate understanding of disaster scenes using low-power edge devices for computer vision. The main objective of this competition is to improve semantic segmentation on an embedded device (NVIDIA Jetson Nano 2GB Developer Kit) using PyTorch models. Participants will develop models capable of automatically analyzing images captured by unmanned aerial vehicles (UAVs) in disaster-stricken areas.
+
+UAVs equipped with inexpensive sensors provide imagery of disaster areas that are difficult to access for humans. However, their processing capability is limited due to energy-constrained resources and low-compute devices, resulting in delays in analysis and longer response times for relief operations. The competition aims to promote the use of on-device computer vision on UAVs, addressing challenges related to power consumption and latency.
+
+## Objective
+
+The main objective of this project is to develop efficient semantic segmentation models for automatically analyzing disaster scenes from UAV-captured images. We will use the NVIDIA Jetson Nano 2GB Developer Kit as the embedded device to run the developed models.
+
+## Requirements
+
+- Python 3.6 
+- PyTorch 1.11.1
+- NVIDIA Jetson Nano 2GB Developer Kit
+
+## Installation
+
+1. Clone this GitHub repository to your local machine:
+
+```bash
+git clone https://github.com/SunJacques/LPCVC-2023.git
+```
+
+2. Install the necessary dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Dataset
+
+The dataset used in this competition consists of 1,700 samples of images collected by UAVs in disaster-affected areas. The dataset will be provided to the participants and should be placed in the `data/` directory at the root of the project.
+
+## Model Training
+
+To train the model, run the training script `train.py`:
+
+```bash
+python train.py
+```
+
+The trained model will be saved in the `checkpoints/` directory.
+
+## Model Evaluation
+
+To evaluate the model, run the evaluation script `evaluate.py`:
+
+```bash
+python evaluate.py
+```
+
+The evaluation results will be displayed on the screen.
+
+## License
+
+This project is distributed under the MIT License. Please see the [LICENSE](LICENSE) file for more information.
+
+## Additional Resources
+
+- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)
+- [NVIDIA Jetson Nano Developer Kit](https://developer.nvidia.com/embedded/jetson-nano-developer-kit)
