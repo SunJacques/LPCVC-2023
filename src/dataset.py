@@ -11,12 +11,12 @@ import os
 import numpy as np
 
 class LPCVCDataset(Dataset):
-    def __init__(self, img_path, segm_path, transform,  n_class=14, train=True, patch=False):
-        self.img_path = img_path
-        self.segm_path = segm_path
+    def __init__(self, datapath, transform,  n_class=14, train=True, patch=False):
+        self.datapath = datapath
 
         self.transform = transform
         self.n_class = n_class
+        self.train = train
 
         self.patches = patch
     
@@ -25,9 +25,14 @@ class LPCVCDataset(Dataset):
         return len(files)
     
     def __getitem__(self, idx):
-        img = cv2.imread(self.img_path + 'train_' + str(idx).zfill(4) + '.png')
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(self.segm_path  + 'train_' +str(idx).zfill(4) + '.png')
+        if self.train:
+            img = cv2.imread(self.datapath + 'train/GT/train_' + str(idx).zfill(4) + '.png')
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mask = cv2.imread(self.datapath  + 'train/IMG/train_' +str(idx).zfill(4) + '.png')
+        else:
+            img = cv2.imread(self.datapath + 'val/GT/val_' + str(idx).zfill(4) + '.png')
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mask = cv2.imread(self.datapath  + 'val/IMG/val_' +str(idx).zfill(4) + '.png')
 
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
