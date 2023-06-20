@@ -21,7 +21,10 @@ class LPCVCDataset(Dataset):
         self.patches = patch
     
     def __len__(self):
-        files = glob.glob(os.path.join(self.img_path, "*.png"))
+        if self.train:
+            files = glob.glob(os.path.join(self.datapath + 'train/IMG', "*.png"))
+        else:
+            files = glob.glob(os.path.join(self.datapath + 'val/IMG', "*.png"))
         return len(files)
     
     def __getitem__(self, idx):
