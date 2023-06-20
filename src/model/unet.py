@@ -10,13 +10,16 @@ class conv_block(nn.Module):
 
         # Convolution layer
         self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=3, padding=1) #change kernel_size if we want to use a 2*1 or other
+
         # Best normalization
         self.bn1 = nn.BatchNorm2d(out_c)
-        # ReLu
-        self.relu = nn.ReLU()
+
 
         self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(out_c)
+
+        # ReLu
+        self.relu = nn.ReLU()
 
     # First Layer
 
@@ -24,11 +27,11 @@ class conv_block(nn.Module):
     def forward(self, inputs):
         x = self.conv1(inputs)
         x = self.bn1(x)
-        x = self.relu
+        x = self.relu(x)
 
-        x = self.conv2(inputs)
+        x = self.conv2(x)
         x = self.bn2(x)
-        x = self.relu
+        x = self.relu(x)
 
         return x
 
@@ -91,6 +94,7 @@ class UNET(nn.Module):
 
 
     def forward(self, inputs):
+
         s1, p1 = self.e1(inputs)
         s2, p2 = self.e2(p1) # p1 is  the output of the first encoder
         s3, p3 = self.e3(p2) 
@@ -109,7 +113,7 @@ class UNET(nn.Module):
 ### Test
 
 if __name__ == "__main__":
-    inputs = torch.randn((2,3,512,512))
+    inputs = torch.randn((10, 3,512,512))
     model = UNET()
     y = model(inputs)
     print(y.shape)
