@@ -162,3 +162,5 @@ cython_debug/
 # Dataset Images
 
 *.png
+
+*.DS_Store
