@@ -19,11 +19,11 @@ def train(model, args, train_loader):
     for data in tqdm(train_loader):
         iteration+=1
         
-        inputs,labels=data[0].to(args.device),data[1].to(args.device)
+        inputs, labels = data[0].to(args.device), data[1].to(args.device)
         
-        outputs=model(inputs)
-        
-        loss = args.criterion(outputs,labels)
+        with torch.cuda.amp.autocast():
+            outputs=model(inputs)
+            loss = args.criterion(outputs,labels)
         
         args.optimizer.zero_grad()
         loss.backward()
@@ -70,14 +70,14 @@ def main():
             num_workers=2,
             pin_memory=True
     )
-    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=False)
-    val_loader = torch.utils.data.DataLoader(
-            dataset=val_dataset,
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=1,
-            pin_memory=True
-    ) 
+    # val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=False)
+    # val_loader = torch.utils.data.DataLoader(
+    #         dataset=val_dataset,
+    #         batch_size=args.batch_size,
+    #         shuffle=False,
+    #         num_workers=1,
+    #         pin_memory=True
+    # ) 
     args.criterion = torch.nn.BCEWithLogitsLoss().to(args.device)
     args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum_sgd, weight_decay=args.weight_decay)
     

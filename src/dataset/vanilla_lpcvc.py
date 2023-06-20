@@ -29,13 +29,13 @@ class LPCVCDataset(Dataset):
     
     def __getitem__(self, idx):
         if self.train:
-            img = cv2.imread(self.datapath + 'train/GT/train_' + str(idx).zfill(4) + '.png')
+            img = cv2.imread(self.datapath + 'train/IMG/train_' + str(idx).zfill(4) + '.png')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(self.datapath  + 'train/IMG/train_' +str(idx).zfill(4) + '.png')
+            mask = cv2.imread(self.datapath  + 'train/GT/train_' +str(idx).zfill(4) + '.png')
         else:
-            img = cv2.imread(self.datapath + 'val/GT/val_' + str(idx).zfill(4) + '.png')
+            img = cv2.imread(self.datapath + 'val/IMG/val_' + str(idx).zfill(4) + '.png')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(self.datapath  + 'val/IMG/val_' +str(idx).zfill(4) + '.png')
+            mask = cv2.imread(self.datapath  + 'val/GT/val_' +str(idx).zfill(4) + '.png')
 
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
@@ -46,7 +46,7 @@ class LPCVCDataset(Dataset):
         img = t(img)
         mask = self.onehot(mask, self.n_class)
             
-        return img, mask
+        return img, np.transpose(mask, (2, 0, 1))
     
     def onehot(self, img, nb):
         oh = np.zeros((img.shape[0], img.shape[1], nb))
