@@ -11,7 +11,7 @@ import os
 import numpy as np
 
 class LPCVCDataset(Dataset):
-    def __init__(self, datapath, transform,  n_class=14, train=True, patch=False):
+    def __init__(self, datapath, transform=None,  n_class=14, train=True, patch=False):
         self.datapath = datapath
 
         self.transform = transform
