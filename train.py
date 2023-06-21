@@ -1,89 +1,119 @@
 import argparse
 import torch
 import torch.nn as nn
-from torchvision import transforms
+from torchvision import transforms as T
 from src.dataset.vanilla_lpcvc import LPCVCDataset
 import torchvision
 import wandb
 
-from src.model.unet import UNET
+from src.model.model import UNET
+from sample_solution.evaluation.accuracy import AccuracyTracker
 
 from tqdm import tqdm
 import random
 import numpy as np
+import PIL
+
+accuracyTrackerTrain: AccuracyTracker = AccuracyTracker(n_classes=14)
+accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
+
 
 def train(model, args, train_loader):
     model.train()
-    running_loss=0
+
+    running_loss = 0
+    running_accu = 0
+    running_dice = 0
+
     iteration=0
-    correct = 0
-    total=0
+
+    loop = tqdm(train_loader)
     
-    for data in tqdm(train_loader):
+    for batch_idx, (inputs, labels) in enumerate(loop):
         iteration+=1
         
-        inputs, labels = data[0].to(args.device), data[1].to(args.device)
+        inputs, labels = inputs.to(args.device), labels.to(args.device)
         
-        with torch.cuda.amp.autocast():
-            outputs=model(inputs)
-            loss = args.criterion(outputs,labels)
+
+        outputs=model(inputs)
+        loss = args.criterion(outputs,labels)
         
         args.optimizer.zero_grad()
-        loss.backward()
-        args.optimizer.step()
+        args.scaler.scale(loss).backward()
+        args.scaler.step(args.optimizer)
+        args.scaler.update()
+
+        loop.set_postfix(loss=loss.item())
         
         running_loss += loss.item()
 
-        _, predicted = outputs.max(1)
-        total += labels.size(0)
-        correct += predicted.eq(labels).sum().item()
+        outputs = outputs.cpu().data.max(1)[1].numpy()
+        labels = labels.cpu().data.max(1)[1].numpy()
+        outputs.astype(np.uint8)
+        labels.astype(np.uint8)
+
+        accuracyTrackerTrain.update(labels, outputs)
+        running_accu += accuracyTrackerTrain.get_scores()
+        running_dice += accuracyTrackerTrain.get_mean_dice()
 
 
-    train_loss=running_loss/len(train_loader)
-    accu=100.*correct/total
-
-    train_accu.append(accu)
-    train_losses.append(train_loss)
+    train_loss = running_loss/iteration
+    train_accuracy = running_accu/iteration
+    train_dice = running_dice/iteration
         
-    print('Train Loss: %.3f | Accuracy: %.3f'%(train_loss,accu))
-    return(accu, train_loss)
+    print('Train Loss: %.3f | Accuracy: %.3f | Dice: %.3f'%(train_loss,train_accuracy, train_dice))
+    return(train_accuracy, train_loss, train_dice)
 
-def test(model, args, val_loader):
+def eval(model, args, val_loader):
     model.eval()
+
     running_loss=0
+    running_accu = 0
+    running_dice = 0
+    running_time = 0
+
     iteration=0
-    correct = 0
-    total=0
-    
+
+    loop = tqdm(val_loader)
+
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
     with torch.no_grad():
-        for data in tqdm(val_loader):
+        for batch_idx, (inputs, labels) in enumerate(loop):
             iteration+=1
             
-            inputs, labels = data[0].to(args.device), data[1].to(args.device)
+            inputs, labels = inputs.to(args.device), labels.to(args.device)
             
-            with torch.cuda.amp.autocast():
-                outputs=model(inputs)
-                loss = args.criterion(outputs,labels)
-            
-            args.optimizer.zero_grad()
-            loss.backward()
-            args.optimizer.step()
+            starter.record()
+            outputs=model(inputs)
+            ender.record()
+
+            torch.cuda.synchronize()
+
+            running_time += starter.elapsed_time(ender)
+
+            loss = args.criterion(outputs,labels)
             
             running_loss += loss.item()
 
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
+            outputs = outputs.cpu().data.max(1)[1].numpy()
+            labels = labels.cpu().data.max(1)[1].numpy()
+
+            outputs.astype(np.uint8)
+            labels.astype(np.uint8)
+
+            accuracyTrackerVal.update(labels, outputs)
+            running_accu += accuracyTrackerVal.get_scores()
+            running_dice += accuracyTrackerVal.get_mean_dice()
 
 
-    test_loss=running_loss/len(val_loader)
-    accu=100.*correct/total
+    val_loss=running_loss/iteration
+    val_accuracy = running_accu/iteration
+    val_dice = running_dice/iteration
+    val_time = running_time/iteration
 
-    eval_accu.append(accu)
-    eval_losses.append(test_loss)
-        
-    print('Test Loss: %.3f | Accuracy: %.3f'%(test_loss,accu))
-    return(accu, test_loss)
+    print('Eval Loss: %.3f | Accuracy: %.3f | Dice: %.3f'%(val_loss, val_accuracy, val_dice))
+    return(val_accuracy, val_loss, val_dice, val_time)
 
 
 def main():
@@ -93,10 +123,10 @@ def main():
                         help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 100)')
-    parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
-    parser.add_argument('--dev', default="cuda:0")
+    parser.add_argument('--dev', default="cuda:1")
     parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M',
                         help='Momentum')
     parser.add_argument('--datapath', default='LPCVCDataset')
@@ -106,32 +136,30 @@ def main():
     if args.dev != "cpu":
         torch.cuda.set_device(args.device)
 
-    model = UNET().to(args.device)
+    model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
 
-    train_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=True)
+    transform = T.Compose([T.ToPILImage(), T.Resize(128,PIL.Image.NEAREST)])
+
+    train_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=transform, train=True)
     train_loader = torch.utils.data.DataLoader(
             dataset=train_dataset,
             batch_size=args.batch_size,
             shuffle=True,
-            num_workers=2,
+            num_workers=4,
             pin_memory=True
     )
-    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=False)
+    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=transform , train=False)
     val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset,
             batch_size=args.batch_size,
             shuffle=False,
-            num_workers=1,
+            num_workers=4,
             pin_memory=True
     ) 
-    args.criterion = torch.nn.BCEWithLogitsLoss().to(args.device)
-    args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum_sgd, weight_decay=args.weight_decay)
-
-    train_accu = []
-    train_losses = []
-
-    eval_accu = []
-    eval_losses = []
+    args.criterion = torch.nn.CrossEntropyLoss().to(args.device)
+    args.optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    args.scaler = torch.cuda.amp.GradScaler()
+    
 
     wandb.init(project="LPCVC")
     wandb.run.name = "UNET 0"
@@ -139,22 +167,22 @@ def main():
     wandb.config.batch_size = args.batch_size
     wandb.config.learning_rate = args.lr
     wandb.config.weight_decay = args.weight_decay
-    wandb.config.momentum = args.momentum_sgd
-    wandb.config.train_dataset = train_dataset
-    wandb.config.test_dataset = val_dataset
-    wandb.config.train_targets = train_dataset.targets
+    wandb.config.train_dataset_length = len(train_dataset)
+    wandb.config.val_dataset_length = len(val_dataset)
 
 
     for epoch in range(1, args.epochs+1):
         print('\nEpoch : %d'%epoch)
-        train_acc, train_loss = train(model, args, train_loader)
-        test_acc, test_loss = test(model, args, val_loader)
+        train_acc, train_loss, train_dice = train(model, args, train_loader)
+        val_acc, val_loss, val_dice, val_time = eval(model, args, val_loader)
         wandb.log(
-            {"train_acc": train_acc, "train_loss": train_loss,
-            "test_acc": test_acc, "test_loss": test_loss})
+            {"train_acc": train_acc, "train_loss": train_loss, "train_dice": train_dice,
+            "val_acc": val_acc, "val_loss": val_loss, "val_dice": val_dice, "inf_time": val_time})
+
+        if(epoch%100==0):
+            torch.save(model.state_dict(), 'src/model/vanilla-lpcvc_unet_'+str(epoch)+'_'+str(args.batch_size)+'.pth')
 
 wandb.finish()
-
 
 if __name__ == '__main__':
     main()

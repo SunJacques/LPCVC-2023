@@ -63,8 +63,8 @@ class UNET(nn.Module):
 
             concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.ups[idx+1](concat_skip)
-
-        return self.final_conv(x)
+        softmax = nn.Softmax(dim=1)
+        return softmax(self.final_conv(x))
 
 def test():
     x = torch.randn((3, 1, 161, 161))

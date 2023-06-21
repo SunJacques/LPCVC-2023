@@ -35,20 +35,18 @@ class LPCVCDataset(Dataset):
             img = cv2.imread(self.datapath + 'val/IMG/val_' + str(idx).zfill(4) + '.png')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             mask = cv2.imread(self.datapath  + 'val/GT/val_' +str(idx).zfill(4) + '.png')
-
         if self.transform:
             img = self.transform(img)
             mask = self.transform(mask)
         
         t = T.Compose([T.ToTensor(), T.Normalize(0, 1)])
         img = t(img)
-        t_mask = T.Compose([T.ToTensor()])
-        mask = self.onehot(t_mask(mask), self.n_class)
+        mask = self.onehot(torch.as_tensor(np.array(mask), dtype=torch.int64), self.n_class)
             
         return img, mask
     
     def onehot(self, img, nb):
-        oh = np.zeros((nb, img.shape[1], img.shape[2]))
+        oh = np.zeros((nb, img.shape[0], img.shape[1]))
         for i in range(nb):
-            oh[i, :,:] = (img[0,:,:] == i)
+            oh[i, :,:] = (img[:,:, 0] == i)
         return oh
