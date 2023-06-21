@@ -50,6 +50,40 @@ def train(model, args, train_loader):
 
 def test(model, args, val_loader):
     model.eval()
+    running_loss=0
+    iteration=0
+    correct = 0
+    total=0
+    
+    with torch.no_grad():
+        for data in tqdm(val_loader):
+            iteration+=1
+            
+            inputs, labels = data[0].to(args.device), data[1].to(args.device)
+            
+            with torch.cuda.amp.autocast():
+                outputs=model(inputs)
+                loss = args.criterion(outputs,labels)
+            
+            args.optimizer.zero_grad()
+            loss.backward()
+            args.optimizer.step()
+            
+            running_loss += loss.item()
+
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+
+
+    test_loss=running_loss/len(val_loader)
+    accu=100.*correct/total
+
+    eval_accu.append(accu)
+    eval_losses.append(test_loss)
+        
+    print('Test Loss: %.3f | Accuracy: %.3f'%(test_loss,accu))
+    return(accu, test_loss)
 
 
 def main():
@@ -82,19 +116,22 @@ def main():
             num_workers=2,
             pin_memory=True
     )
-    # val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=False)
-    # val_loader = torch.utils.data.DataLoader(
-    #         dataset=val_dataset,
-    #         batch_size=args.batch_size,
-    #         shuffle=False,
-    #         num_workers=1,
-    #         pin_memory=True
-    # ) 
+    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14, train=False)
+    val_loader = torch.utils.data.DataLoader(
+            dataset=val_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=1,
+            pin_memory=True
+    ) 
     args.criterion = torch.nn.BCEWithLogitsLoss().to(args.device)
     args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum_sgd, weight_decay=args.weight_decay)
 
     train_accu = []
     train_losses = []
+
+    eval_accu = []
+    eval_losses = []
 
     wandb.init(project="LPCVC")
     wandb.run.name = "UNET 0"
@@ -104,23 +141,19 @@ def main():
     wandb.config.weight_decay = args.weight_decay
     wandb.config.momentum = args.momentum_sgd
     wandb.config.train_dataset = train_dataset
-    #wandb.config.test_dataset = test_dataset
+    wandb.config.test_dataset = val_dataset
     wandb.config.train_targets = train_dataset.targets
 
-    
+
     for epoch in range(1, args.epochs+1):
         print('\nEpoch : %d'%epoch)
         train_acc, train_loss = train(model, args, train_loader)
-        wandb.log({"train_acc": train_acc, "train_loss": train_loss,})
-        if(epoch%20==0):
-            #with torch.no_grad():
-            #    test(model, args, val_loader)
-            torch.save(model.state_dict(), 'models/vanilla-lpcvc_'+epoch+'.pth')
-        if args.optimizer.param_groups[0]['lr'] < 0.001: break;
-
+        test_acc, test_loss = test(model, args, val_loader)
+        wandb.log(
+            {"train_acc": train_acc, "train_loss": train_loss,
+            "test_acc": test_acc, "test_loss": test_loss})
 
 wandb.finish()
-
 
 
 if __name__ == '__main__':
