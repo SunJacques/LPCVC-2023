@@ -46,10 +46,10 @@ class LPCVCDataset(Dataset):
         img = t(img)
         mask = self.onehot(mask, self.n_class)
             
-        return img, np.transpose(mask, (2, 0, 1))
+        return img, mask
     
     def onehot(self, img, nb):
-        oh = np.zeros((img.shape[0], img.shape[1], nb))
+        oh = np.zeros((nb, img.shape[0], img.shape[1]))
         for i in range(nb):
-            oh[:,:,i] = (img[:,:,0] == i)
+            oh[i, :,:] = (img[:,:,0] == i)
         return oh
