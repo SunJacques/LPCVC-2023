@@ -4,6 +4,7 @@ import torch.nn as nn
 from torchvision import transforms
 from src.dataset.vanilla_lpcvc import LPCVCDataset
 import torchvision
+import wandb
 
 from src.model.unet import UNET
 
@@ -15,6 +16,8 @@ def train(model, args, train_loader):
     model.train()
     running_loss=0
     iteration=0
+    correct = 0
+    total=0
     
     for data in tqdm(train_loader):
         iteration+=1
@@ -31,10 +34,19 @@ def train(model, args, train_loader):
         
         running_loss += loss.item()
 
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+
+
     train_loss=running_loss/len(train_loader)
+    accu=100.*correct/total
+
+    train_accu.append(accu)
+    train_losses.append(train_loss)
         
-    print('Train Loss: %.3f | Accuracy: %.3f'%(train_loss))
-    return(train_loss)
+    print('Train Loss: %.3f | Accuracy: %.3f'%(train_loss,accu))
+    return(accu, train_loss)
 
 def test(model, args, val_loader):
     model.eval()
@@ -80,15 +92,34 @@ def main():
     # ) 
     args.criterion = torch.nn.BCEWithLogitsLoss().to(args.device)
     args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum_sgd, weight_decay=args.weight_decay)
+
+    train_accu = []
+    train_losses = []
+
+    wandb.init(project="LPCVC")
+    wandb.run.name = "UNET 0"
+    wandb.config.epochs = args.epochs
+    wandb.config.batch_size = args.batch_size
+    wandb.config.learning_rate = args.lr
+    wandb.config.weight_decay = args.weight_decay
+    wandb.config.momentum = args.momentum_sgd
+    wandb.config.train_dataset = train_dataset
+    #wandb.config.test_dataset = test_dataset
+    wandb.config.train_targets = train_dataset.targets
+
     
     for epoch in range(1, args.epochs+1):
         print('\nEpoch : %d'%epoch)
-        train(model, args, train_loader)
+        train_acc, train_loss = train(model, args, train_loader)
+        wandb.log({"train_acc": train_acc, "train_loss": train_loss,})
         if(epoch%20==0):
             #with torch.no_grad():
             #    test(model, args, val_loader)
             torch.save(model.state_dict(), 'models/vanilla-lpcvc_'+epoch+'.pth')
         if args.optimizer.param_groups[0]['lr'] < 0.001: break;
+
+
+wandb.finish()
 
 
 
