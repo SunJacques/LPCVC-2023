@@ -132,6 +132,7 @@ def eval(model, args, val_loader):
 
 
 def main():
+    torch.cuda.empty_cache()
     # Training settings
     parser = argparse.ArgumentParser(description='Information Removal at the bottleneck in Deep Neural Networks')
     parser.add_argument('--batch-size', type=int, default=32, metavar='N',
@@ -141,7 +142,7 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
-    parser.add_argument('--dev', default="cuda:1")
+    parser.add_argument('--dev', default="cuda:0")
     parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M',
                         help='Momentum')
     parser.add_argument('--datapath', default='LPCVCDataset')
@@ -172,7 +173,9 @@ def main():
             pin_memory=True
     ) 
     args.criterion = torch.nn.CrossEntropyLoss().to(args.device)
-    args.optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    #args.optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(args.optimizer, gamma=0.1)
     args.scaler = torch.cuda.amp.GradScaler()
     
 
@@ -184,6 +187,8 @@ def main():
     wandb.config.weight_decay = args.weight_decay
     wandb.config.train_dataset_length = len(train_dataset)
     wandb.config.val_dataset_length = len(val_dataset)
+    wandb.config.optmizer = "SGD"
+    wandb.config.momentum = args.momentum_sgd
 
 
     for epoch in range(1, args.epochs+1):
@@ -198,6 +203,8 @@ def main():
 
         if(epoch%100==0):
             torch.save(model.state_dict(), 'src/model/vanilla-lpcvc_unet_'+str(epoch)+'_'+str(args.batch_size)+'.pth')
+
+        scheduler.step()
 
 wandb.finish()
 
