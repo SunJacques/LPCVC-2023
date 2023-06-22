@@ -203,11 +203,11 @@ def main():
         wandb.log(
             {"train_acc": accuracyTrackerTrain.get_scores(), "train_loss": train_loss, "train_dice": accuracyTrackerTrain.get_mean_dice(),
             "val_acc": accuracyTrackerVal.get_scores(), "val_loss": val_loss, "val_dice": accuracyTrackerVal.get_mean_dice(), "inf_time": val_time,
-              "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image),
-              "learning rate": scheduler.get_last_lr()})
+            "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image),
+            "learning rate": scheduler.get_last_lr()})
 
         if(epoch%100==0):
-            torch.save(model.state_dict(), 'src/model/'+args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
+            torch.save(model, 'src/model/'+args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
 
         scheduler.step()
 
