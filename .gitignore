@@ -164,3 +164,7 @@ cython_debug/
 *.png
 
 *.DS_Store
+wandb
+.vscode
+*.pth
+*.out

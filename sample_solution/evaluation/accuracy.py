@@ -43,9 +43,27 @@ class AccuracyTracker(object):
         self.fwavacc = (freq[freq > 0] * dice[freq > 0]).sum()
         self.cls_dice = dict(zip(range(self.n_classes), dice))
 
-        return {
-            "Overall Acc: \t": self.acc,
-            "Mean Acc : \t": self.acc_cls,
-            "FreqW Acc : \t": self.fwavacc,
-            "Mean Dice : \t": self.mean_dice,
-        }
+        return self.acc
+    
+    def get_mean_dice(self):
+        hist = self.confusion_matrix
+        self.acc = numpy.diag(hist).sum() / hist.sum()
+        acc_cls = numpy.diag(hist) / (hist.sum(axis=1) + 0.000000001)
+        self.acc_cls = numpy.nanmean(acc_cls)
+
+        with numpy.errstate(invalid='ignore'):
+            dice = 2*numpy.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0))
+
+        self.mean_dice = numpy.nanmean(dice)
+        freq = hist.sum(axis=1) / hist.sum()
+        self.fwavacc = (freq[freq > 0] * dice[freq > 0]).sum()
+        self.cls_dice = dict(zip(range(self.n_classes), dice))
+
+        return self.mean_dice
+
+        # return {
+        #     "Overall Acc: \t": self.acc,
+        #     "Mean Acc : \t": self.acc_cls,
+        #     "FreqW Acc : \t": self.fwavacc,
+        #     "Mean Dice : \t": self.mean_dice,
+        # }
