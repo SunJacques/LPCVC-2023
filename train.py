@@ -17,6 +17,7 @@ import numpy as np
 import PIL
 import albumentations as A
 import cv2
+import segmentation_models_pytorch as smp
 
 accuracyTrackerTrain: AccuracyTracker = AccuracyTracker(n_classes=14)
 accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
@@ -159,7 +160,8 @@ def main():
     if args.dev != "cpu":
         torch.cuda.set_device(args.device)
 
-    model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
+    #model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
+    model = smp.Unet('mobilenet_v2', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5, decoder_channels=[256, 128, 64, 32, 16]).to(args.device)
 
     transform = A.Compose([A.Resize(width=128, height=128, interpolation=cv2.INTER_NEAREST)])
 
