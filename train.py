@@ -15,6 +15,8 @@ from tqdm import tqdm
 import random
 import numpy as np
 import PIL
+import albumentations as A
+import cv2
 
 accuracyTrackerTrain: AccuracyTracker = AccuracyTracker(n_classes=14)
 accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
@@ -22,6 +24,8 @@ accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
 colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'pink', 'lime', 'brown', 'gray', 'olive', 'teal', 'navy']
 cmap = ListedColormap(colors[:15])
 
+IMG_WIDTH = 128
+IMG_HEIGHT = 128
 
 def train(model, args, train_loader):
     model.train()
@@ -58,23 +62,23 @@ def train(model, args, train_loader):
         labels.astype(np.uint8)
 
         accuracyTrackerTrain.update(labels, outputs)
-        running_accu += accuracyTrackerTrain.get_scores()
-        running_dice += accuracyTrackerTrain.get_mean_dice()
+        #running_accu += accuracyTrackerTrain.get_scores()
+        #running_dice += accuracyTrackerTrain.get_mean_dice()
 
 
     train_loss = running_loss/iteration
-    train_accuracy = running_accu/iteration
-    train_dice = running_dice/iteration
+    #train_accuracy = running_accu/iteration
+    #train_dice = running_dice/iteration
         
-    print('Train Loss: %.3f | Accuracy: %.3f | Dice: %.3f'%(train_loss,train_accuracy, train_dice))
-    return(train_accuracy, train_loss, train_dice)
+    print('Train Loss: %.3f'%(train_loss))
+    return(train_loss)
 
 def eval(model, args, val_loader):
     model.eval()
 
     running_loss=0
-    running_accu = 0
-    running_dice = 0
+    # running_accu = 0
+    # running_dice = 0
     running_time = 0
 
     saved_images = np.zeros((3, 128, 128, 3))
@@ -110,8 +114,8 @@ def eval(model, args, val_loader):
             labels.astype(np.uint8)
 
             accuracyTrackerVal.update(labels, outputs)
-            running_accu += accuracyTrackerVal.get_scores()
-            running_dice += accuracyTrackerVal.get_mean_dice()
+            # running_accu += accuracyTrackerVal.get_scores()
+            # running_dice += accuracyTrackerVal.get_mean_dice()
 
             if(batch_idx == 0):
                 
@@ -123,12 +127,12 @@ def eval(model, args, val_loader):
 
 
     val_loss=running_loss/iteration
-    val_accuracy = running_accu/iteration
-    val_dice = running_dice/iteration
+    # val_accuracy = running_accu/iteration
+    # val_dice = running_dice/iteration
     val_time = running_time/iteration
 
-    print('Eval Loss: %.3f | Accuracy: %.3f | Dice: %.3f'%(val_loss, val_accuracy, val_dice))
-    return(val_accuracy, val_loss, val_dice, val_time, saved_images)
+    print('Eval Loss: %.3f'%(val_loss))
+    return(val_loss, val_time, saved_images)
 
 
 def main():
@@ -154,9 +158,28 @@ def main():
 
     model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
 
-    transform = T.Compose([T.ToPILImage(), T.Resize(128,PIL.Image.NEAREST)])
+    transform = A.Compose([A.Resize(width=128, height=128, interpolation=cv2.INTER_NEAREST)])
 
-    train_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=transform, train=True)
+    aug = A.Compose([
+            #A.ToPILImage(),
+            A.Resize(width=128, height=128, interpolation=cv2.INTER_NEAREST),
+            A.OneOf([
+                A.RandomSizedCrop(min_max_height=(112, 128), height=IMG_HEIGHT, width=IMG_WIDTH, p=0.5),
+                A.PadIfNeeded(min_height=IMG_HEIGHT, min_width=IMG_WIDTH, p=0.5)
+            ], p=1),    
+            A.VerticalFlip(p=0.5),              
+            A.RandomRotate90(p=0.5),
+            #A.OneOf([
+            #    A.ElasticTransform(alpha=12, sigma=120 * 0.05, alpha_affine=120 * 0.03, p=0.5),
+            #    A.GridDistortion(p=0.5),
+            #    A.OpticalDistortion(distort_limit=0.1, shift_limit=0.5, p=1)                  
+            #    ], p=0.8),
+            A.CLAHE(p=0.8),
+            A.RandomBrightnessContrast(p=0.8),    
+            A.RandomGamma(p=0.8)
+    ])
+
+    train_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=aug, train=True)
     train_loader = torch.utils.data.DataLoader(
             dataset=train_dataset,
             batch_size=args.batch_size,
@@ -192,14 +215,16 @@ def main():
 
 
     for epoch in range(1, args.epochs+1):
+        accuracyTrackerTrain.reset()
+        accuracyTrackerVal.reset()
         print('\nEpoch : %d'%epoch)
-        train_acc, train_loss, train_dice = train(model, args, train_loader)
-        val_acc, val_loss, val_dice, val_time, saved_images = eval(model, args, val_loader)
+        train_loss = train(model, args, train_loader)
+        val_loss, val_time, saved_images = eval(model, args, val_loader)
 
         input_image, target_image, pred_image = saved_images[0], saved_images[1], saved_images[2]
         wandb.log(
-            {"train_acc": train_acc, "train_loss": train_loss, "train_dice": train_dice,
-            "val_acc": val_acc, "val_loss": val_loss, "val_dice": val_dice, "inf_time": val_time, "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image)})
+            {"train_acc": accuracyTrackerTrain.get_scores(), "train_loss": train_loss, "train_dice": accuracyTrackerTrain.get_mean_dice(),
+            "val_acc": accuracyTrackerVal.get_scores(), "val_loss": val_loss, "val_dice": accuracyTrackerVal.get_mean_dice(), "inf_time": val_time, "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image)})
 
         if(epoch%100==0):
             torch.save(model.state_dict(), 'src/model/vanilla-lpcvc_unet_'+str(epoch)+'_'+str(args.batch_size)+'.pth')
