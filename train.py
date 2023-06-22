@@ -133,6 +133,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 100)')
     parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--dev', default="cuda:0")
@@ -151,10 +152,26 @@ def main():
     model = smp.FPN('efficientnet-b3', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5).to(args.device)
 
     transform = A.Compose([A.Resize(width=IMG_SIZE, height=IMG_SIZE, interpolation=cv2.INTER_NEAREST)])
+    transform = A.Compose([A.Resize(width=IMG_WIDTH, height=IMG_HEIGHT, interpolation=cv2.INTER_NEAREST)])
 
-    aug = A.Compose([A.Resize(IMG_SIZE, IMG_SIZE, interpolation=cv2.INTER_NEAREST), A.HorizontalFlip(), A.VerticalFlip(), 
-                     A.GridDistortion(p=0.2), A.RandomBrightnessContrast((0,0.5),(0,0.5)),
-                     A.GaussNoise()])
+    transform = A.Compose([A.Resize(width=IMG_WIDTH, height=IMG_HEIGHT, interpolation=cv2.INTER_NEAREST)])
+
+    # aug = A.Compose([A.Resize(IMG_WIDTH, IMG_HEIGHT, interpolation=cv2.INTER_NEAREST), A.HorizontalFlip(), A.VerticalFlip(), 
+    #                  A.GridDistortion(p=0.2), A.RandomBrightnessContrast((0,0.1),(0,0.1)),
+    #                  A.GaussNoise()])
+    
+    aug = A.Compose([
+        A.RandomCrop(width=IMG_WIDTH, height=IMG_HEIGHT, p=1.0),
+        A.HorizontalFlip(p=1.0),
+        A.VerticalFlip(p=1.0),
+        A.Rotate(limit=[60, 240], p=1.0, interpolation=cv2.INTER_NEAREST),
+        A.RandomBrightnessContrast(brightness_limit=[-0.2, 0.2], contrast_limit=0.2, p=1.0),
+        A.OneOf([
+            A.CLAHE (clip_limit=2.0, tile_grid_size=(2, 2), p=0.5),
+            A.GridDistortion(p=0.2),
+            A.OpticalDistortion(distort_limit=0.4, shift_limit=0.3, interpolation=cv2.INTER_NEAREST, p=0.4),
+        ], p=1.0),
+    ], p=1.0)
 
     train_dataset = LPCVCDataset(datapath=args.datapath,mean=mean ,std=std ,n_class=14,transform=aug, train=True)
     train_loader = torch.utils.data.DataLoader(
@@ -174,21 +191,20 @@ def main():
     ) 
     args.criterion = torch.nn.CrossEntropyLoss().to(args.device)
     args.optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    #args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    #scheduler = torch.optim.lr_scheduler.ExponentialLR(args.optimizer, gamma=0.1)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 0.001, epochs=args.epochs, steps_per_epoch=len(train_loader))
     args.scaler = torch.cuda.amp.GradScaler()
-    
+    args.sched = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 1e-3, epochs=args.epochs,
+                                            steps_per_epoch=len(train_loader))
     
 
-    wandb.init(project="LPCVC")
-    wandb.run.name = args.name
+    wandb.init(project="LPCVC", entity="lpcvc")
+    wandb.run.name = "UNET"
     wandb.config.epochs = args.epochs
     wandb.config.batch_size = args.batch_size
     wandb.config.learning_rate = args.lr
     wandb.config.weight_decay = args.weight_decay
     wandb.config.train_dataset_length = len(train_dataset)
     wandb.config.val_dataset_length = len(val_dataset)
+    wandb.config.optmizer = "ADAMW"
     wandb.config.momentum = args.momentum_sgd
 
 
@@ -206,10 +222,9 @@ def main():
             "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image),
             "learning rate": scheduler.get_last_lr()})
 
-        if(epoch%100==0):
-            torch.save(model, 'src/model/'+args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
+        if(epoch%20==0):
+            torch.save(model.state_dict(), args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
 
-        scheduler.step()
 
 wandb.finish()
 
