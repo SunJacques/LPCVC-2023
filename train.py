@@ -27,6 +27,9 @@ cmap = ListedColormap(colors[:15])
 IMG_WIDTH = 128
 IMG_HEIGHT = 128
 
+mean = [0.4607, 0.4558, 0.4192]
+std = [0.1855, 0.1707, 0.1769]
+
 def train(model, args, train_loader):
     model.train()
 
@@ -48,9 +51,9 @@ def train(model, args, train_loader):
         loss = args.criterion(outputs,labels)
         
         args.optimizer.zero_grad()
-        args.scaler.scale(loss).backward()
-        args.scaler.step(args.optimizer)
-        args.scaler.update()
+        loss.backward()
+        args.optimizer.step()
+        args.sched.step() 
 
         loop.set_postfix(loss=loss.item())
         
@@ -143,7 +146,7 @@ def main():
                         help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 100)')
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--dev', default="cuda:0")
@@ -160,26 +163,11 @@ def main():
 
     transform = A.Compose([A.Resize(width=128, height=128, interpolation=cv2.INTER_NEAREST)])
 
-    aug = A.Compose([
-            #A.ToPILImage(),
-            A.Resize(width=128, height=128, interpolation=cv2.INTER_NEAREST),
-            A.OneOf([
-                A.RandomSizedCrop(min_max_height=(112, 128), height=IMG_HEIGHT, width=IMG_WIDTH, p=0.5),
-                A.PadIfNeeded(min_height=IMG_HEIGHT, min_width=IMG_WIDTH, p=0.5)
-            ], p=1),    
-            A.VerticalFlip(p=0.5),              
-            A.RandomRotate90(p=0.5),
-            #A.OneOf([
-            #    A.ElasticTransform(alpha=12, sigma=120 * 0.05, alpha_affine=120 * 0.03, p=0.5),
-            #    A.GridDistortion(p=0.5),
-            #    A.OpticalDistortion(distort_limit=0.1, shift_limit=0.5, p=1)                  
-            #    ], p=0.8),
-            A.CLAHE(p=0.8),
-            A.RandomBrightnessContrast(p=0.8),    
-            A.RandomGamma(p=0.8)
-    ])
+    aug = A.Compose([A.Resize(128, 128, interpolation=cv2.INTER_NEAREST), A.HorizontalFlip(), A.VerticalFlip(), 
+                     A.GridDistortion(p=0.2), A.RandomBrightnessContrast((0,0.5),(0,0.5)),
+                     A.GaussNoise()])
 
-    train_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=aug, train=True)
+    train_dataset = LPCVCDataset(datapath=args.datapath,mean=mean ,std=std ,n_class=14,transform=aug, train=True)
     train_loader = torch.utils.data.DataLoader(
             dataset=train_dataset,
             batch_size=args.batch_size,
@@ -187,7 +175,7 @@ def main():
             num_workers=4,
             pin_memory=True
     )
-    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,transform=transform , train=False)
+    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,mean=mean ,std=std, transform=transform , train=False)
     val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset,
             batch_size=args.batch_size,
@@ -196,10 +184,12 @@ def main():
             pin_memory=True
     ) 
     args.criterion = torch.nn.CrossEntropyLoss().to(args.device)
-    #args.optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    args.optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    #args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(args.optimizer, gamma=0.1)
     args.scaler = torch.cuda.amp.GradScaler()
+    args.sched = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, args.lr, epochs=args.epochs,
+                                            steps_per_epoch=len(train_loader))
     
 
     wandb.init(project="LPCVC")

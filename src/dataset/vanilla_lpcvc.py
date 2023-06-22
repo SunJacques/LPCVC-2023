@@ -10,12 +10,15 @@ import os
 import numpy as np
 
 class LPCVCDataset(Dataset):
-    def __init__(self, datapath, transform=None,  n_class=14, train=True, patch=False):
+    def __init__(self, datapath, transform=None,mean=0, std=1, n_class=14, train=True, patch=False):
         self.datapath = datapath
 
         self.transform = transform
         self.n_class = n_class
         self.train = train
+
+        self.mean = mean
+        self.std = std
 
         self.patches = patch
     
@@ -40,7 +43,7 @@ class LPCVCDataset(Dataset):
             img = augmented['image']
             mask = augmented['mask']
         
-        t = T.Compose([T.ToTensor(), T.Normalize(0, 1)])
+        t = T.Compose([T.ToTensor(), T.Normalize(self.mean, self.std)])
         img = t(img)
         mask = self.onehot(torch.as_tensor(np.array(mask), dtype=torch.int64), self.n_class)
             
