@@ -128,17 +128,12 @@ def main():
     torch.cuda.empty_cache()
     # Training settings
     parser = argparse.ArgumentParser(description='Information Removal at the bottleneck in Deep Neural Networks')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
-                        help='input batch size for training (default: 32)')
-    parser.add_argument('--epochs', type=int, default=100, metavar='N',
-                        help='number of epochs to train (default: 100)')
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
-                        help='learning rate (default: 0.1)')
+    parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 32)')
+    parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 100)')
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--dev', default="cuda:0")
-    parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M',
-                        help='Momentum')
+    parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M', help='Momentum')
     parser.add_argument('--datapath', default='LPCVCDataset')
     parser.add_argument('--name', default='RUN')
     args = parser.parse_args()
@@ -148,20 +143,13 @@ def main():
         torch.cuda.set_device(args.device)
 
     #model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
-    #model = smp.Unet('efficientnet-b3', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5, decoder_channels=[256, 128, 64, 32, 16]).to(args.device)
-    model = smp.FPN('efficientnet-b3', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5).to(args.device)
+    model = smp.UnetPlusPlus('mobilenet_v2', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5, decoder_channels=[256, 128, 64, 32, 16]).to(args.device)
+    #model = smp.FPN('efficientnet-b3', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5).to(args.device)
 
-    transform = A.Compose([A.Resize(width=IMG_SIZE, height=IMG_SIZE, interpolation=cv2.INTER_NEAREST)])
-    transform = A.Compose([A.Resize(width=IMG_WIDTH, height=IMG_HEIGHT, interpolation=cv2.INTER_NEAREST)])
+    transform_val = A.Compose([A.Resize(width=IMG_SIZE, height=IMG_SIZE, interpolation=cv2.INTER_NEAREST)])
 
-    transform = A.Compose([A.Resize(width=IMG_WIDTH, height=IMG_HEIGHT, interpolation=cv2.INTER_NEAREST)])
-
-    # aug = A.Compose([A.Resize(IMG_WIDTH, IMG_HEIGHT, interpolation=cv2.INTER_NEAREST), A.HorizontalFlip(), A.VerticalFlip(), 
-    #                  A.GridDistortion(p=0.2), A.RandomBrightnessContrast((0,0.1),(0,0.1)),
-    #                  A.GaussNoise()])
-    
-    aug = A.Compose([
-        A.RandomCrop(width=IMG_WIDTH, height=IMG_HEIGHT, p=1.0),
+    transform_train = A.Compose([
+        A.RandomCrop(width=IMG_SIZE, height=IMG_SIZE, p=1.0),
         A.HorizontalFlip(p=1.0),
         A.VerticalFlip(p=1.0),
         A.Rotate(limit=[60, 240], p=1.0, interpolation=cv2.INTER_NEAREST),
@@ -173,7 +161,7 @@ def main():
         ], p=1.0),
     ], p=1.0)
 
-    train_dataset = LPCVCDataset(datapath=args.datapath,mean=mean ,std=std ,n_class=14,transform=aug, train=True)
+    train_dataset = LPCVCDataset(datapath=args.datapath,mean=mean ,std=std ,n_class=14,transform=transform_train, train=True)
     train_loader = torch.utils.data.DataLoader(
             dataset=train_dataset,
             batch_size=args.batch_size,
@@ -181,7 +169,7 @@ def main():
             num_workers=4,
             pin_memory=True
     )
-    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,mean=mean ,std=std, transform=transform , train=False)
+    val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,mean=mean ,std=std, transform=transform_val , train=False)
     val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset,
             batch_size=args.batch_size,
@@ -220,10 +208,10 @@ def main():
             {"train_acc": accuracyTrackerTrain.get_scores(), "train_loss": train_loss, "train_dice": accuracyTrackerTrain.get_mean_dice(),
             "val_acc": accuracyTrackerVal.get_scores(), "val_loss": val_loss, "val_dice": accuracyTrackerVal.get_mean_dice(), "inf_time": val_time,
             "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image),
-            "learning rate": scheduler.get_last_lr()})
+            "learning rate": args.sched.get_last_lr()})
 
         if(epoch%20==0):
-            torch.save(model.state_dict(), args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
+            torch.save(model, args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
 
 
 wandb.finish()
