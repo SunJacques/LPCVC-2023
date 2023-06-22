@@ -36,8 +36,9 @@ class LPCVCDataset(Dataset):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             mask = cv2.imread(self.datapath  + 'val/GT/val_' +str(idx).zfill(4) + '.png')
         if self.transform:
-            img = self.transform(img)
-            mask = self.transform(mask)
+            augmented = self.transform(image=img, mask=mask)
+            img = augmented['image']
+            mask = augmented['mask']
         
         t = T.Compose([T.ToTensor(), T.Normalize(0, 1)])
         img = t(img)
