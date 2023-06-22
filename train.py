@@ -8,6 +8,8 @@ import wandb
 
 from src.model.model import UNET
 from sample_solution.evaluation.accuracy import AccuracyTracker
+from matplotlib.colors import ListedColormap
+
 
 from tqdm import tqdm
 import random
@@ -16,6 +18,9 @@ import PIL
 
 accuracyTrackerTrain: AccuracyTracker = AccuracyTracker(n_classes=14)
 accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
+
+colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'pink', 'lime', 'brown', 'gray', 'olive', 'teal', 'navy']
+cmap = ListedColormap(colors[:15])
 
 
 def train(model, args, train_loader):
@@ -72,6 +77,8 @@ def eval(model, args, val_loader):
     running_dice = 0
     running_time = 0
 
+    saved_images = np.zeros((3, 128, 128, 3))
+
     iteration=0
 
     loop = tqdm(val_loader)
@@ -106,6 +113,14 @@ def eval(model, args, val_loader):
             running_accu += accuracyTrackerVal.get_scores()
             running_dice += accuracyTrackerVal.get_mean_dice()
 
+            if(batch_idx == 0):
+                
+                saved_images[0] = np.transpose(inputs.cpu().numpy()[0], (1, 2, 0))
+                label = labels[0].reshape(128, 128, 1)
+                output = outputs[0].reshape(128, 128, 1)
+                saved_images[1] = cmap(np.repeat(label[:, :, np.newaxis], 3, axis=2).reshape(128, 128, 3))[:,:,0,:3]
+                saved_images[2] = cmap(np.repeat(output[:, :, np.newaxis], 3, axis=2).reshape(128, 128, 3))[:,:,0,:3]
+
 
     val_loss=running_loss/iteration
     val_accuracy = running_accu/iteration
@@ -113,7 +128,7 @@ def eval(model, args, val_loader):
     val_time = running_time/iteration
 
     print('Eval Loss: %.3f | Accuracy: %.3f | Dice: %.3f'%(val_loss, val_accuracy, val_dice))
-    return(val_accuracy, val_loss, val_dice, val_time)
+    return(val_accuracy, val_loss, val_dice, val_time, saved_images)
 
 
 def main():
@@ -174,10 +189,12 @@ def main():
     for epoch in range(1, args.epochs+1):
         print('\nEpoch : %d'%epoch)
         train_acc, train_loss, train_dice = train(model, args, train_loader)
-        val_acc, val_loss, val_dice, val_time = eval(model, args, val_loader)
+        val_acc, val_loss, val_dice, val_time, saved_images = eval(model, args, val_loader)
+
+        input_image, target_image, pred_image = saved_images[0], saved_images[1], saved_images[2]
         wandb.log(
             {"train_acc": train_acc, "train_loss": train_loss, "train_dice": train_dice,
-            "val_acc": val_acc, "val_loss": val_loss, "val_dice": val_dice, "inf_time": val_time})
+            "val_acc": val_acc, "val_loss": val_loss, "val_dice": val_dice, "inf_time": val_time, "input_image" : wandb.Image(input_image), "target_image" : wandb.Image(target_image), "pred_image" : wandb.Image(pred_image)})
 
         if(epoch%100==0):
             torch.save(model.state_dict(), 'src/model/vanilla-lpcvc_unet_'+str(epoch)+'_'+str(args.batch_size)+'.pth')
