@@ -32,7 +32,7 @@ import argparse
 from tqdm import tqdm
 import wandb
 from torchvision import models
-from torchsummary import summary
+# from torchsummary import summary
 
 
 # ## Dataset Preparation
@@ -205,7 +205,7 @@ resnet_model = ResNet_18(3, 14)
 # In[7]:
 
 
-summary(resnet_model,(3, 512, 512))
+# summary(resnet_model,(3, 512, 512))
 
 
 # ## Training
