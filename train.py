@@ -128,9 +128,13 @@ def main():
     torch.cuda.empty_cache()
     # Training settings
     parser = argparse.ArgumentParser(description='Information Removal at the bottleneck in Deep Neural Networks')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 32)')
-    parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 100)')
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate (default: 0.1)')
+    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
+    parser.add_argument('--epochs', type=int, default=100, metavar='N',
+                        help='number of epochs to train (default: 100)')
+    parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',
+                        help='learning rate (default: 0.1)')
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--dev', default="cuda:0")
     parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M', help='Momentum')
@@ -179,22 +183,10 @@ def main():
     ) 
     args.criterion = torch.nn.CrossEntropyLoss().to(args.device)
     args.optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    #args.optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(args.optimizer, gamma=0.1)
+    #scheduler = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 0.001, epochs=args.epochs, steps_per_epoch=args.batch_size)
     args.scaler = torch.cuda.amp.GradScaler()
-    args.sched = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 1e-3, epochs=args.epochs,
-                                            steps_per_epoch=len(train_loader))
-    
-
-    wandb.init(project="LPCVC", entity="lpcvc")
-    wandb.run.name = "UNET"
-    wandb.config.epochs = args.epochs
-    wandb.config.batch_size = args.batch_size
-    wandb.config.learning_rate = args.lr
-    wandb.config.weight_decay = args.weight_decay
-    wandb.config.train_dataset_length = len(train_dataset)
-    wandb.config.val_dataset_length = len(val_dataset)
-    wandb.config.optmizer = "ADAMW"
-    wandb.config.momentum = args.momentum_sgd
-
 
     for epoch in range(1, args.epochs+1):
         accuracyTrackerTrain.reset()
@@ -213,6 +205,7 @@ def main():
         if(epoch%20==0):
             torch.save(model, args.name+'_'+str(epoch)+'_'+str(args.batch_size)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
 
+        #scheduler.step()
 
 wandb.finish()
 
