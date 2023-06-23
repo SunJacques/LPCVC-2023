@@ -7,6 +7,7 @@ import torchvision
 import wandb
 
 from src.model.model import UNET
+from src.model.fast_scnn import FastSCNN
 from sample_solution.evaluation.accuracy import AccuracyTracker
 from matplotlib.colors import ListedColormap
 
@@ -25,7 +26,7 @@ accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
 colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'pink', 'lime', 'brown', 'gray', 'olive', 'teal', 'navy']
 cmap = ListedColormap(colors[:15])
 
-IMG_SIZE = 128
+IMG_SIZE = 256
 
 mean = [0.4607, 0.4558, 0.4192]
 std = [0.1855, 0.1707, 0.1769]
@@ -62,9 +63,9 @@ def train(model, args, train_loader):
 
         accuracyTrackerTrain.update(labels, outputs)
 
-
     train_loss = running_loss/iteration
-        
+    
+    args.sched.step()
     print('Train Loss: %.3f'%(train_loss))
     return(train_loss)
 
@@ -147,9 +148,9 @@ def main():
         torch.cuda.set_device(args.device)
 
     #model = UNET(in_channels=3, out_channels=14, features=[64, 128, 256, 512]).to(args.device)
-    model = smp.UnetPlusPlus('mobilenet_v2', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5, decoder_channels=[256, 128, 64, 32, 16]).to(args.device)
+    model = smp.Unet('mobilenet_v2', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=4, decoder_channels=[128, 64, 32, 16]).to(args.device)
     #model = smp.FPN('efficientnet-b3', encoder_weights='imagenet', classes=14, activation=None, encoder_depth=5).to(args.device)
-
+    #model = FastSCNN(in_channels=3, num_classes=14).to(args.device)
     transform_val = A.Compose([A.Resize(width=IMG_SIZE, height=IMG_SIZE, interpolation=cv2.INTER_NEAREST)])
 
     transform_train = A.Compose([
@@ -187,6 +188,21 @@ def main():
     #scheduler = torch.optim.lr_scheduler.ExponentialLR(args.optimizer, gamma=0.1)
     #scheduler = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 0.001, epochs=args.epochs, steps_per_epoch=args.batch_size)
     args.scaler = torch.cuda.amp.GradScaler()
+    args.sched = torch.optim.lr_scheduler.OneCycleLR(args.optimizer, 1e-3, epochs=args.epochs,
+                                            steps_per_epoch=len(train_loader))
+    
+
+    wandb.init(project="LPCVC", entity="lpcvc")
+    wandb.run.name = "UNET"
+    wandb.config.epochs = args.epochs
+    wandb.config.batch_size = args.batch_size
+    wandb.config.learning_rate = args.lr
+    wandb.config.weight_decay = args.weight_decay
+    wandb.config.train_dataset_length = len(train_dataset)
+    wandb.config.val_dataset_length = len(val_dataset)
+    wandb.config.optmizer = "ADAMW"
+    wandb.config.momentum = args.momentum_sgd
+
 
     for epoch in range(1, args.epochs+1):
         accuracyTrackerTrain.reset()
@@ -211,3 +227,4 @@ wandb.finish()
 
 if __name__ == '__main__':
     main()
+
