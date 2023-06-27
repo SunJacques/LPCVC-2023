@@ -7,7 +7,7 @@ solution=$1
 filename=$(basename $solution)
 submissionName=${filename%.pyz}
 
-path="/home/lpcvcnode1/lpcvc2023/evaluation"
+path="/home/infres/nvernier-22/project/LPCVC-2023/sample_solution/evaluation"
 mkdir $path/evalDirectory
 if [ ! -d "$path/output" ]; then
   mkdir "$path/output"

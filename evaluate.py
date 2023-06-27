@@ -11,6 +11,11 @@ import albumentations as A
 import numpy as np
 import cv2
 from PIL import Image
+import random
+import segmentation_models_pytorch as smp
+import segmentation_models_pytorch.utils as utils
+
+
 
 import torch.cuda.memory as memory
 
@@ -33,7 +38,7 @@ def eval(model, args, val_loader, memory_allocated_prev):
     saved_images = np.zeros((3, IMG_SIZE, IMG_SIZE, 3))
 
     starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-
+    random_idx = random.randint(0, len(val_loader)-1)
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(tqdm(val_loader)):
             iteration+=1
@@ -61,7 +66,7 @@ def eval(model, args, val_loader, memory_allocated_prev):
 
             accuracyTrackerVal.update(labels, outputs)
 
-            if(batch_idx == 19):
+            if(batch_idx == random_idx):
                 saved_images[0] = np.transpose(inputs.cpu().numpy()[0], (1, 2, 0))
                 label = labels[0].reshape(IMG_SIZE, IMG_SIZE, 1)
                 output = outputs[0].reshape(IMG_SIZE, IMG_SIZE, 1)
@@ -85,9 +90,6 @@ def save_images(saved_images, path):
     Image.fromarray(target_image).save(path+"target.png")
     Image.fromarray(pred_image).save(path+"pred.png")
 
-    print('Eval Loss: %.3f'%(val_loss))
-    return(val_loss, val_time, saved_images)
-
 def main():
     parser = argparse.ArgumentParser(description='Information Removal at the bottleneck in Deep Neural Networks')
     parser.add_argument('--modelpath', default="")
@@ -99,8 +101,15 @@ def main():
 
     torch.cuda.empty_cache()
 
+    print("Loading model...")
     model = torch.load(args.modelpath).to(args.device)
-    model.eval()
+
+    print("Quantization of the model...")
+    model_int8 = torch.ao.quantization.quantize_dynamic(
+                model,  # the original model
+                {torch.nn.Linear},  # a set of layers to dynamically quantize
+                dtype=torch.qint8)  # the target dtype for quantized weights
+    model_int8.eval()
 
     memory_allocated = memory_allocated_prev = torch.cuda.memory_allocated(args.device)
     print("Memory allocated for the model : {:.2f} MB".format(memory_allocated / (1024 * 1024)))
@@ -110,13 +119,13 @@ def main():
     val_dataset = LPCVCDataset(datapath=args.datapath, n_class=14,mean=mean ,std=std, transform=transform , train=False)
     val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset,
-            batch_size=1,
+            batch_size=32,
             shuffle=False,
             num_workers=4,
             pin_memory=True)
-
+    # Get train and val data loaders
     val_time, saved_images = eval(model, args, val_loader, memory_allocated_prev)
-    print(torch.cuda.memory_summary())
+    print(torch.cuda.memory_summary(args.device))
     print("Total memory used : {:.2f} MB".format(torch.cuda.memory_allocated(args.device) / (1024 * 1024)))
     print("inf_time: {:.3f} ms, mean_dice: {:.3f}, score: {:.3f}".format(val_time, accuracyTrackerVal.get_mean_dice(), 1000*accuracyTrackerVal.get_mean_dice()/val_time))
     save_images(saved_images, args.save_images_path)
