@@ -10,17 +10,16 @@ import os
 import numpy as np
 
 class LPCVCDataset(Dataset):
-    def __init__(self, datapath, transform=None,mean=0, std=1, n_class=14, train=True, patch=False):
+    def __init__(self, datapath, augmentation=None, preprocessing=None,mean=0, std=1, n_class=14, train=True):
         self.datapath = datapath
 
-        self.transform = transform
+        self.augmentation = augmentation
+        self.preprocessing = preprocessing
         self.n_class = n_class
         self.train = train
 
         self.mean = mean
         self.std = std
-
-        self.patches = patch
     
     def __len__(self):
         if self.train:
@@ -38,14 +37,20 @@ class LPCVCDataset(Dataset):
             img = cv2.imread(self.datapath + 'val/IMG/val_' + str(idx).zfill(4) + '.png')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             mask = cv2.imread(self.datapath  + 'val/GT/val_' +str(idx).zfill(4) + '.png')
-        if self.transform:
-            augmented = self.transform(image=img, mask=mask)
-            img = augmented['image']
-            mask = augmented['mask']
         
-        t = T.Compose([T.ToTensor(), T.Normalize(self.mean, self.std)])
-        img = t(img)
         mask = self.onehot(torch.as_tensor(np.array(mask), dtype=torch.int64), self.n_class)
+        mask = np.transpose(mask, (1, 2, 0))
+
+        if self.augmentation:
+            sample = self.augmentation(image=img, mask=mask)
+            img = sample['image']
+            mask = sample['mask']
+
+        if self.preprocessing:
+            sample = self.preprocessing(image=img, mask=mask)
+            img = sample['image']
+            mask = sample['mask']
+        
             
         return img, mask
     

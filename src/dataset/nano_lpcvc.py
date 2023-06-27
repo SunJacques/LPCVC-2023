@@ -8,9 +8,10 @@ from torchvision import transforms as T
 import glob
 import os
 import numpy as np
+from PIL import Image
 
 class LPCVCDataset(Dataset):
-    def __init__(self, datapath, transform=None,mean=0, std=1, n_class=14, train=True, patch=False):
+    def __init__(self, datapath, transform=None,mean=0, std=1, n_class=14, train=True):
         self.datapath = datapath
 
         self.transform = transform
@@ -19,8 +20,6 @@ class LPCVCDataset(Dataset):
 
         self.mean = mean
         self.std = std
-
-        self.patches = patch
     
     def __len__(self):
         if self.train:
@@ -30,20 +29,23 @@ class LPCVCDataset(Dataset):
         return len(files)
     
     def __getitem__(self, idx):
+
         if self.train:
-            img = cv2.imread(self.datapath + 'train/IMG/train_' + str(idx).zfill(4) + '.png')
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(self.datapath  + 'train/GT/train_' +str(idx).zfill(4) + '.png')
+            img = Image.open(self.datapath + 'train/IMG/train_' + str(idx).zfill(4) + '.png').convert('RGB')
+            mask = Image.open(self.datapath + 'train/GT/train_' + str(idx).zfill(4) + '.png')
         else:
-            img = cv2.imread(self.datapath + 'val/IMG/val_' + str(idx).zfill(4) + '.png')
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(self.datapath  + 'val/GT/val_' +str(idx).zfill(4) + '.png')
+            img = Image.open(self.datapath + 'val/IMG/val_' + str(idx).zfill(4) + '.png').convert('RGB')
+            mask = Image.open(self.datapath + 'val/GT/val_' + str(idx).zfill(4) + '.png')
+        # img = np.array(img)
+        # mask = np.array(mask)
         if self.transform:
             augmented = self.transform(image=img, mask=mask)
             img = augmented['image']
             mask = augmented['mask']
+            # img = self.transform(img)
+            # mask = self.transform(mask)
         
-        t = T.Compose([T.ToTensor(), T.Normalize(self.mean, self.std)])
+        t = T.Compose([T.Normalize(self.mean, self.std)])
         img = t(img)
         mask = self.onehot(torch.as_tensor(np.array(mask), dtype=torch.int64), self.n_class)
             

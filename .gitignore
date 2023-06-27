@@ -167,4 +167,4 @@ cython_debug/
 wandb
 .vscode
 *.pth
-*.out
+nohup.out
