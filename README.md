@@ -22,6 +22,7 @@ The main objective of this project is to develop efficient semantic segmentation
 - Python 3.6 
 - PyTorch 1.11.1
 - NVIDIA Jetson Nano 2GB Developer Kit
+- JetPack SDK 4.6.3
 
 ## Installation
 
@@ -36,6 +37,8 @@ git clone https://github.com/SunJacques/LPCVC-2023.git
 ```bash
 pip install -r requirements.txt
 ```
+
+3. Install JetPack on your NVIDIA Jetson Nano device to ensure you have TensorRT installed. You can follow the official NVIDIA JetPack installation guide for detailed instructions on how to install JetPack on your Jetson Nano.
 
 ## Dataset
 
@@ -67,14 +70,13 @@ The dataset used in this competition consists of 1,700 samples of images collect
 ├── train.py
 └── ...
 ```
-
-
+The training and validation data can be downloaded from [here](https://www.google.com/url?q=https://drive.google.com/drive/folders/1h4AyYiFY-kCU3KT-guP_QTVAcONn7VUD&sa=D&source=editors&ust=1688031905668033&usg=AOvVaw3CtjWrC3FrrQjCh8nlYZ7o).
 ## Model Training
 
 To train the model, run the training script `train.py`:
 
 ```bash
-python train.py
+python train.py --datapath dataset/ --epochs 100
 ```
 
 The trained model will be saved in the `checkpoints/` directory.
@@ -84,10 +86,18 @@ The trained model will be saved in the `checkpoints/` directory.
 To evaluate the model, run the evaluation script `evaluate.py`:
 
 ```bash
-python evaluate.py
+python evaluate.py --modelpath checkpoint/model.pth --datapath dataset/
 ```
 
-The evaluation results will be displayed on the screen.
+The evaluation results will be displayed on the terminal.
+
+You can also evaluate the model on the NVIDIA Jetson Nano by using the `evaluate_nano.py` script:
+
+```bash
+python evaluate_nano.py --modelpath checkpoint/model.pth --datapath dataset/
+```
+
+Make sure you have installed JetPack on your Jetson Nano to ensure compatibility with TensorRT.
 
 ## License
 
