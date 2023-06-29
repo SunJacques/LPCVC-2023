@@ -2,7 +2,7 @@ import argparse
 import torch
 import torch.nn as nn
 from torchvision import transforms as T
-from dataset.vanilla_lpcvc import LPCVCDataset
+from src.dataset.vanilla_lpcvc import LPCVCDataset
 from src.utilities.utilities import AugTransform
 import torchvision
 import wandb
@@ -11,7 +11,6 @@ from src.model.model import UNET
 from src.model.fast_scnn import FastSCNN
 from sample_solution.evaluation.accuracy import AccuracyTracker
 from matplotlib.colors import ListedColormap
-from evaluate import get_training_augmentation, get_preprocessing, get_validation_augmentation
 
 
 from tqdm import tqdm
@@ -30,7 +29,7 @@ colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta
 cmap = ListedColormap(colors[:15])
 
 IMG_SIZE = 256
-ENCODER = 'mobilenet_v2'
+ENCODER = 'timm-mobilenetv3_small_minimal_100'
 ENCODER_WEIGHTS = 'imagenet'
 N_CLASSES = 14
 ACTIVATION = 'sigmoid'
@@ -169,12 +168,12 @@ def main():
         A.HorizontalFlip(p=1.0),
         A.VerticalFlip(p=1.0),
         A.Rotate(limit=[60, 240], p=1.0, interpolation=cv2.INTER_NEAREST),
-        A.RandomBrightnessContrast(brightness_limit=[-0.2, 0.2], contrast_limit=0.2, p=1.0),
-        A.OneOf([
-            A.CLAHE (clip_limit=2.0, tile_grid_size=(2, 2), p=0.5),
-            A.GridDistortion(p=0.2),
-            A.OpticalDistortion(distort_limit=0.4, shift_limit=0.3, interpolation=cv2.INTER_NEAREST, p=0.4),
-        ], p=1.0),
+        A.RandomBrightnessContrast(brightness_limit=[-0.2, 0.2], contrast_limit=0.2, p=0.3),
+        # A.OneOf([
+        #     A.CLAHE (clip_limit=2.0, tile_grid_size=(2, 2), p=0.5),
+        #     A.GridDistortion(p=0.2),
+        #     A.OpticalDistortion(distort_limit=0.4, shift_limit=0.3, interpolation=cv2.INTER_NEAREST, p=0.4),
+        # ], p=1.0),
     ], p=1.0)
 
     # aug_data = A.Compose([
@@ -267,7 +266,7 @@ def main():
             })
 
         if(accuracyTrackerVal.get_mean_dice() > best_dice):
-            torch.save(model, args.name+'_'+str(epoch)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
+            torch.save(model, 'checkpoint/' +args.name+'_'+str(epoch)+'_dice_'+str(accuracyTrackerVal.get_mean_dice())+'.pth')
             best_dice = accuracyTrackerVal.get_mean_dice()
         #scheduler.step()
 
