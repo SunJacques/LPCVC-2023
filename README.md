@@ -41,6 +41,7 @@ pip install -r requirements.txt
 
 The dataset used in this competition consists of 1,700 samples of images collected by UAVs in disaster-affected areas. The dataset will be provided to the participants and should be placed in the `dataset/` directory at the root of the project.
 
+```bash
 ├── dataset
 │   ├── train
 │   │    ├── IMG
@@ -65,6 +66,7 @@ The dataset used in this competition consists of 1,700 samples of images collect
 ├── README.md
 ├── train.py
 └── ...
+```
 
 
 ## Model Training
