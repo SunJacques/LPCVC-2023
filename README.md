@@ -101,21 +101,21 @@ Make sure you have installed JetPack on your Jetson Nano to ensure compatibility
 
 ## Results
 
-| Architecure                 | Backbone       | Inference time on A100 (ms) | Dice |Inference time on Jetson Nano (ms) | Score|
-|-----------------------------|----------------|-----------------------------|------|-----------------------------------|------|
-| UNet (128, no augmentation) | /              | 0.87                        | 0.43 | /                                 | /    |
-| UNet (128)                  | /              | 0.85                        | 0.52 | /                                 | /    |
-| UNet (128)                  | ImageNet       | 0.55                        | 0.55 | /                                 | /    |
-| UNet (256)                  | ImageNet       | 0.65                        | 0.6  | /                                 | /    |
-| UNet (256)                  | MobileNetV2    | 0.94                        | 0.65 | /                                 | /    |
-| UNet (128)                  | EfficientNetB4 | 1.4                         | 0.6  | /                                 | /    |
-| FPN (128)                   | EfficientNetB3 | 0.8                         | 0.63 | 36                                | 18   |
-| FPN (256)                   | EfficientNetB3 | 1.7                         | 0.65 | /                                 | /    |
-| FPN (256)                   | EfficientNetB0 | 1.1                         | 0.63 | /                                 | /    |
-| FPN (256)                   | MobileNetV2    | 0.8                         | 0.65 | 50                                | 13   |
-| FastCNN (256)               | /              | 0.37                        | 0.4  | /                                 | /    |
-| PSPNet (256)                | MobileNetV2    | 0.28                        | 0.55 | 14                                | 39   |
-| PSPNET (256)                | MobileNetV3    | 1                           | 0.56 | /                                 | /    |
+|         Architecure         |    Backbone    | Dice | Inference time on A100 (ms) | Inference time on Jetson Nano (ms) | Score |
+|:---------------------------:|:--------------:|:----:|:---------------------------:|:----------------------------------:|:-----:|
+| UNet (128, no augmentation) | /              | 0.43 | 0.87                        | /                                  | /     |
+| UNet (128)                  | /              | 0.52 | 0.85                        | /                                  | /     |
+| UNet (128)                  | ImageNet       | 0.55 | 0.55                        | /                                  | /     |
+| UNet (256)                  | ImageNet       | 0.6  | 0.65                        | /                                  | /     |
+| UNet (256)                  | MobileNetV2    | 0.65 | 0.94                        | /                                  | /     |
+| UNet (128)                  | EfficientNetB4 | 0.6  | 1.4                         | /                                  | /     |
+| FPN (128)                   | EfficientNetB3 | 0.63 | 0.8                         | 36                                 | 18    |
+| FPN (256)                   | EfficientNetB3 | 0.65 | 1.7                         | /                                  | /     |
+| FPN (256)                   | EfficientNetB0 | 0.63 | 1.1                         | /                                  | /     |
+| FPN (256)                   | MobileNetV2    | 0.65 | 0.8                         | 50                                 | 13    |
+| FastCNN (256)               | /              | 0.4  | 0.37                        | /                                  | /     |
+| PSPNet (256)                | MobileNetV2    | 0.55 | 0.28                        | 14                                 | 39    |
+| PSPNET (256)                | MobileNetV3    | 0.54 | 1                           | /                                  | /     |
 
 
 <details>
