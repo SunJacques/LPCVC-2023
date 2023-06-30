@@ -1,28 +1,19 @@
-import argparse
 import torch
-import torch.nn as nn
-from torchvision import transforms as T
 from src.dataset.vanilla_lpcvc import LPCVCDataset
-import torchvision
 
-from src.model.model import UNET
-
-from tqdm import tqdm
-import random
 import numpy as np
 import cv2
-import PIL
 
 import matplotlib.pyplot as plt
 import albumentations as A
 
 from sample_solution.evaluation.accuracy import AccuracyTracker
 from matplotlib.colors import ListedColormap
-import segmentation_models_pytorch as smp
 
 accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
 
 IMG_SIZE = 256
+N = 4
 
 mean = [0.4607, 0.4558, 0.4192]
 std = [0.1855, 0.1707, 0.1769]
@@ -48,15 +39,14 @@ train_loader = torch.utils.data.DataLoader(
     pin_memory=True
 )
 
-for i in range(4):
+for i in range(N):
+    print('Segmenting image ' + str(i) + " / " + str(N))
     accuracyTrackerVal.reset()
     img, label = train_dataset[i]
     print(i)
     data = torch.tensor(np.expand_dims(img, axis=0)).to('cuda:1')
-    print(data.shape)
     outputs=model(data)
 
-    print(label.shape)
 
     labels = label.reshape(1, 14, IMG_SIZE, IMG_SIZE)
     labels = torch.tensor(labels).to('cuda:1')
@@ -68,8 +58,6 @@ for i in range(4):
     labels.astype(np.uint8)
     outputs.astype(np.uint8)
     accuracyTrackerVal.update(labels, outputs)
-    print(accuracyTrackerVal.get_mean_dice())
-    print(accuracyTrackerVal.get_scores())
     labels = np.squeeze(labels, axis=0)
     outputs = np.squeeze(outputs, axis=0)
 
@@ -87,4 +75,4 @@ for i in range(4):
     axes[2].imshow(np.transpose(img, (1, 2, 0)))
     axes[2].set_xlabel('Input')
     plt.savefig('poster'+str(i)+'.png', dpi=300)
-    print(np.unique(labels))
+    #print(np.unique(labels))

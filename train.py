@@ -28,8 +28,8 @@ accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
 colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'pink', 'lime', 'brown', 'gray', 'olive', 'teal', 'navy']
 cmap = ListedColormap(colors[:15])
 
-IMG_SIZE = 256
-ENCODER = 'timm-mobilenetv3_small_minimal_100'
+IMG_SIZE = 512
+ENCODER = 'mobilenet_v2'
 ENCODER_WEIGHTS = 'imagenet'
 N_CLASSES = 14
 ACTIVATION = 'sigmoid'
@@ -138,7 +138,7 @@ def main():
     parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 100)')
     parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate (default: 0.0001)')
-    parser.add_argument('--weight_decay', type=float, default=0.0001)
+    parser.add_argument('--weight_decay', type=float, default=0.00005)
     parser.add_argument('--dev', default="cuda:0")
     parser.add_argument('--momentum-sgd', type=float, default=0.9, metavar='M', help='Momentum')
     parser.add_argument('--datapath', default='LPCVCDataset')
@@ -165,9 +165,9 @@ def main():
 
     aug_data = A.Compose([
         A.Resize(width=IMG_SIZE, height=IMG_SIZE, interpolation=cv2.INTER_NEAREST),
-        A.HorizontalFlip(p=1.0),
-        A.VerticalFlip(p=1.0),
-        A.Rotate(limit=[60, 240], p=1.0, interpolation=cv2.INTER_NEAREST),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.Rotate(limit=[-60, 60], p=0.8, interpolation=cv2.INTER_NEAREST),
         A.RandomBrightnessContrast(brightness_limit=[-0.2, 0.2], contrast_limit=0.2, p=0.3),
         # A.OneOf([
         #     A.CLAHE (clip_limit=2.0, tile_grid_size=(2, 2), p=0.5),
