@@ -149,38 +149,6 @@ We looked for new models, read corresponding papers and focused on a paper publi
 
 </details>
 
-
-<details>
-  <summary>Daily Report</summary>
-  
-### Tuesday: 
-We researched existing architectures and decided to start with the UNet architecture. We also began familiarizing ourselves with PyTorch.
-___
-### Wednesday: 
-We coded UNet architecture from scratch and trained the model for the first time. We then enhanced the model performance by resizing the dataset in 128x128 with less layer (4) for Unet. We tested the model with another optimizer, SGD with a different learning rate but the results are not optimistic. 
-We also researched existing backbones to improve the performance of the model.
-___
-### Thursday: 
-We implemented the following backbones: ResNet, EfficientNet, MobileNet, and ImageNet. We also tried to code an AutoEncoder to improve our current model. Then, we tested a new architecture (FPN) with different learning rates for the FPN. We also added a One Cycle scheduler and augmented the images in the dataset. We achieved a satisfactory dice score with FPN, but the FastCNN architecture allows lower inference time and utilizes less memory (700Mo). Unfortunately, the obtained dice score is not satisfactory (0.38). The new objective is, therefore, to start from the FastCNN model and attempt to improve its dice score.
-___
-### Friday: 
-We enhanced the inference time by implementing quantisation and dice for FastCNN, and retrained the model with a dataset of data size 256x256 but the results are not satisfying. We then turned to another promising model: PSPNet. We started using Jetson Nano and tried to load our model on the card, but encountered numerous errors.
-___
-### Saturday: 
-We optimized the PSPNet by testing different backbones(MobileNet, ResNet).
-___
-### Monday: 
-We tried to solve the problem with Jetson Nano in our code, and loaded the models we trained. We obtained an inference time of 50ms with PSPNet. We also encountered the problem that the first inference time was too long, however, it was enhanced in the process of inferences.
-___
-### Tuesday: 
-We searched for ways to optimize our model on the Jetson Nano device. Consequently, we utilized TensorRT to enhance the inference time. As a result, the PSPNet model achieved an inference time of 16ms.  
-To further improve this inference time, we decided to use quantization and we thus achieved an inference time of 14ms.
-___
-### Wednesday: 
-We looked for new models, read corresponding papers and focused on a paper published last May on a new architecture JetSeg, and adapted the code to our study case. We did the same for ESPNet architecture.
-
-</details>
-
 ## License
 
 This project is distributed under the MIT License. Please see the [LICENSE](LICENSE) file for more information.
