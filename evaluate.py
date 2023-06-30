@@ -1,9 +1,8 @@
 import torch
 import argparse
-from torchvision import transforms as T
 from src.dataset.vanilla_lpcvc import LPCVCDataset
 
-from src.model.model import UNET
+
 from sample_solution.evaluation.accuracy import AccuracyTracker
 from matplotlib.colors import ListedColormap
 from tqdm import tqdm
@@ -12,12 +11,7 @@ import numpy as np
 import cv2
 from PIL import Image
 import random
-import segmentation_models_pytorch as smp
-import segmentation_models_pytorch.utils as utils
 
-
-
-import torch.cuda.memory as memory
 
 IMG_SIZE = 256
 mean = [0.4607, 0.4558, 0.4192]

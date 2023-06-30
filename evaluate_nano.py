@@ -5,7 +5,7 @@ from tqdm import tqdm
 from torchvision import transforms as T
 import numpy as np
 from PIL import Image
-#from torch2trt import torch2trt
+from torch2trt import torch2trt
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import random
@@ -61,16 +61,16 @@ def main():
     print("[Finish load model]")
     #------------------------------------------------------------
     print("[Quantization of the model...]")
-    # model_int8 = torch.ao.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
-    # model_int8.cuda()
-    # model_int8.eval()
+    model_int8 = torch.ao.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+    model_int8.cuda()
+    model_int8.eval()
     print("[Finish Quantization]")
     #------------------------------------------------------------
     x, img = load_image(random.randint(1, 100), args.datapath)
     #------------------------------------------------------------
     # convert to TensorRT feeding sample data as input
     print("[Convert the model with TensorRT...]")
-    #model_trt = torch2trt(model, [x])
+    model_trt = torch2trt(model, [x])
     model_trt = model
     print("[Finish TensorRT]")
     #------------------------------------------------------------
