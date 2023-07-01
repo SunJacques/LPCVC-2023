@@ -2,7 +2,6 @@ import torch
 import argparse
 from src.dataset.vanilla_lpcvc import LPCVCDataset
 
-
 from sample_solution.evaluation.accuracy import AccuracyTracker
 from matplotlib.colors import ListedColormap
 from tqdm import tqdm
@@ -18,7 +17,6 @@ mean = [0.4607, 0.4558, 0.4192]
 std = [0.1855, 0.1707, 0.1769]
 colors = ['green', 'red', 'blue', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'pink', 'lime', 'brown', 'gray', 'olive', 'teal', 'navy']
 cmap = ListedColormap(colors[:15])
-
 
 accuracyTrackerVal: AccuracyTracker = AccuracyTracker(n_classes=14)
 
