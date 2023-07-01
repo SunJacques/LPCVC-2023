@@ -56,13 +56,14 @@ def main():
     torch.cuda.empty_cache()
     #------------------------------------------------------------   
     print("[Loading model...] at " + args.modelpath)
-    model = torch.load(args.modelpath).cuda()
+    model = torch.load(args.modelpath)
+    model.to(args.device)
     model.eval()
     print("[Finish load model]")
     #------------------------------------------------------------
     print("[Quantization of the model...]")
     model_int8 = torch.ao.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
-    model_int8.cuda()
+    model_int8.to(args.device)
     model_int8.eval()
     print("[Finish Quantization]")
     #------------------------------------------------------------
@@ -70,8 +71,7 @@ def main():
     #------------------------------------------------------------
     # convert to TensorRT feeding sample data as input
     print("[Convert the model with TensorRT...]")
-    model_trt = torch2trt(model, [x])
-    model_trt = model
+    model= torch2trt(model, [x])
     print("[Finish TensorRT]")
     #------------------------------------------------------------
     starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
@@ -81,11 +81,11 @@ def main():
     with torch.no_grad():
         # GPU-WARM-UP
         for _ in range(4):
-            _ = model_trt(x)
+            _ = model(x)
         # MEASURE PERFORMANCE
         for i in range(30):
             starter.record()
-            output = model_trt(x)
+            output = model(x)
             ender.record()
             torch.cuda.synchronize()
             running_inference_time += starter.elapsed_time(ender)
