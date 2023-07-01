@@ -6,7 +6,6 @@ import numpy as np
 from PIL import Image
 from torch2trt import torch2trt
 import torch.nn.functional as F
-import random
 import pkg_resources
 import os
 
@@ -44,9 +43,7 @@ def getArgs() -> Namespace:
 
 def loadImageToTensor(imagePath):
     transform = T.Compose([T.ToTensor(),T.Resize(size=IMG_SIZE, interpolation=T.functional.InterpolationMode.NEAREST)])
-    print("[Loading the image...] at " + imagePath)
     img = Image.open(imagePath).convert('RGB')
-    print("[Finish load image]")
     x = np.array(img)
     x = transform(x)
     t = T.Compose([T.Normalize(mean, std)])
@@ -90,13 +87,13 @@ def main():
         time = 0
         with torch.no_grad():
             # MEASURE PERFORMANCE
-            for image_file in image_files[:15]:
+            for image_file in image_files:
                 input_image_path: str = os.path.join(args.input, image_file)
                 output_image_path: str = os.path.join(args.output, image_file)
                 imageTensor: torch.Tensor = loadImageToTensor(imagePath=input_image_path)
                 imageTensor = imageTensor.to(device)
                 starter.record()
-                output = model(x)
+                output = model(imageTensor)
                 ender.record()
                 torch.cuda.synchronize()
                 
@@ -113,7 +110,6 @@ def main():
                 outImage = Image.fromarray(outImage, mode='L')
                 outImage.save(output_image_path)
                 
-        print(time/1000)
         del model
         del imageTensor
         del outTensor
@@ -125,5 +121,5 @@ def main():
         print("______________________RESULTS______________________")
         print("___________________________________________________")
 
-        print("Total time = "str(time/1000) + " ms")
-        print("Mean Inference Time = " + str(round(time/len(image_files[:15]), 3)) + " ms")
+        print("Total time = " + str(time) + " ms")
+        print("Mean Inference Time = " + str(round(time/len(image_files), 3)) + " ms")
