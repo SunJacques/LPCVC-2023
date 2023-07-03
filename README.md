@@ -99,7 +99,7 @@ python evaluate_nano.py --modelpath checkpoint/model.pth --datapath dataset/
 
 Make sure you have installed JetPack on your Jetson Nano to ensure compatibility with TensorRT.
 
-## Evaluation
+## Submission
 - To submit your solution you have to zip it first : `solution.pyz`: the zipped package of solution/. [`zipapp`](https://docs.python.org/3/library/zipapp.html) should be used to compress the package.
   
 Recommended command where solution is the name to your directory: `python3.6 -m zipapp  solution  -p='/usr/bin/env python3.6'`

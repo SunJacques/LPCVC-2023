@@ -4,7 +4,10 @@ from torchvision import transforms as T
 from typing import List
 import numpy as np
 from PIL import Image
-from torch2trt import torch2trt
+try:
+    from torch2trt import torch2trt
+except:
+    pass
 import torch.nn.functional as F
 import pkg_resources
 import os
@@ -73,7 +76,10 @@ def main():
         x = loadImageToTensor(imagePath=input_image_path)
         #------------------------------------------------------------
         # convert to TensorRT feeding sample data as input
-        model = torch2trt(model, [x])
+        try:
+            model = torch2trt(model, [x])
+        except:
+            pass
         #------------------------------------------------------------
         starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
 
@@ -93,7 +99,7 @@ def main():
                 imageTensor: torch.Tensor = loadImageToTensor(imagePath=input_image_path)
                 imageTensor = imageTensor.to(device)
                 starter.record()
-                output = model(imageTensor)
+                outTensor = model(imageTensor)
                 ender.record()
                 torch.cuda.synchronize()
                 
@@ -109,17 +115,9 @@ def main():
                 outImage: np.ndarray = np.squeeze(outArray, axis=0)
                 outImage = Image.fromarray(outImage, mode='L')
                 outImage.save(output_image_path)
-                
+        print(time/1000)
         del model
         del imageTensor
         del outTensor
         torch.cuda.empty_cache()
         model_file.close()
-        
-        print("[Finish measuring performance]")
-        print("___________________________________________________")
-        print("______________________RESULTS______________________")
-        print("___________________________________________________")
-
-        print("Total time = " + str(time) + " ms")
-        print("Mean Inference Time = " + str(round(time/len(image_files), 3)) + " ms")
